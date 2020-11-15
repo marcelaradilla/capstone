@@ -1,0 +1,528 @@
+---
+title: "Capstone Iterative Work Products"
+subtitle: 'A replication study'
+author: "Marcela Radilla Deloya <br/> CP193" 
+
+output: html_notebook
+---
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. 
+## Loading relevant libraries 
+
+```{r}
+# important libraries 
+library(affy)
+library(limma)
+library(dplyr)
+library(VennDiagram)
+library(RColorBrewer)
+library(knitr)
+library(writexl)
+```
+
+## Data loading 
+### Dataset 1 
+Loading the data for the first dataset: GSE3678. This dataset contains 14 CEL files (data fifles created by the Affymetrix DNA microarray image analysis software) coming from 7 paired samples (PTC and normal tissue) from an expression profiling by array experiment. The experiment analyzed the gene expression profiles of 7 papillary thyroid carcinoma (PTC) samples and 7 paired normal tissue samples usying Affymetrix tools. 
+GEO accession link: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE3678
+
+```{r}
+setwd("~/Documents/Fall 2020/capstone/replication/GSE3678")
+data1_names<-list.celfiles()
+#data1_names
+```
+
+```{r}
+data1<-read.affybatch(filenames = data1_names,compress=TRUE)
+#data1
+```
+### Dataset 2 
+Loading data for second dataset: GSE3467. This dataset contains CEL files from 9 PTC samples and 9 paired normal tissue samples from an expression profiling by array experiment.
+GEO accession link:
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE3467
+
+```{r}
+setwd("~/Documents/Fall 2020/capstone/replication/GSE3467")
+data2_names<-list.celfiles()
+#data2_names
+```
+
+```{r}
+data2<-read.affybatch(filenames = data2_names,compress=TRUE)
+#data2
+```
+
+### Dataset 3 
+Loading data for third dataset: GSE33630. This dataset contains CEL files from 11 anaplastic thyroid carcinomas (ATC), 49 PTC samples and 45 normal tissue samples from an expression profiling by array experiment. The ATC samples were excluded since they are from ATC, a cancer type that is not analayzed by Liang & Sun (2018). 
+GEO accession link: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE33630
+```{r}
+setwd("~/Documents/Fall 2020/capstone/replication/GSE33630")
+data3_names<-list.celfiles()
+#data3_names
+```
+
+```{r}
+data3<-read.affybatch(filenames = data3_names,compress=TRUE)
+data3
+```
+
+### Dataset 4
+Loading data for fourth dataset: GSE58545. This datset contains samples from 27 papillary thyroid carcinomas including 18 BRAF(+), 8 RET(+), 1 RAS(+) and 18 apparently healthy thyroids.These samples were also used as part of an expression profiling by array experiment. 
+GEO accession link: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE58545
+```{r}
+setwd("~/Documents/Fall 2020/capstone/replication/GSE58545")
+data4_names<-list.celfiles()
+#data4_names
+```
+
+```{r}
+data4<-read.affybatch(filenames = data4_names,compress=TRUE)
+data4
+```
+
+## Data preprocessing 
+The RMA algorithm will preprocess the files we read with Affy and will turn them into an expression set. 
+```{r}
+#the RMA algorithm will preprocess the files we read with Affy and will turn them into an expression set 
+eset1<-rma(data1)
+eset1
+```
+
+```{r}
+dim(eset1)
+```
+
+The cell below is using RMA to preprocess data for the other 3 datasets. In total we have 4 expression sets:(eset 1, eset 2,eset 3, eset 4) 
+
+These expression sets will be used to carry out the DEG analysis using limma. 
+```{r}
+eset2<-rma(data2)
+eset3<-rma(data3)
+eset4<-rma(data4)
+```
+
+```{r}
+eset2
+```
+
+```{r}
+eset3
+```
+
+
+```{r}
+eset4
+```
+
+The expression set contains the log expression values.
+```{r}
+ex1=exprs(eset1)
+colnames(ex1)
+```
+
+### Gene lists 
+```{r}
+genes_1=geneNames(data1)
+genes_2=geneNames(data2)
+genes_3=geneNames(data4)
+genes_4=geneNames(data4)
+```
+
+## DEG analysis 
+The $limma$ function will be used to carry out the DEG analysis. We will use cutoffs for logFC>1 and pvalue<0.05. 
+
+### DEG analysis on dataset 1: GSE3678
+
+Creating the design matrix
+```{r}
+design1 <- model.matrix(~-1 + factor(rep(1:2, each=7)))
+colnames(design1) <- c("normal_1","tumor_1")
+design1
+```
+
+#### Creating the contrast matrix and running $lmFit$.
+```{r}
+contrast1<- makeContrasts(T1VSN1=tumor_1-normal_1, levels = colnames(design1))
+contrast1
+```
+
+```{r}
+fit_1<- lmFit(eset1, design1)
+fit2_1 <- contrasts.fit(fit_1, contrast1)
+fit2_1 <- eBayes(fit2_1)
+summary(decideTests(fit2_1))
+```
+
+
+#### Limma output for Dataset 1:GSE3678
+```{r}
+table1=topTable(fit2_1,p.value=0.05, lfc=1,n=70000,adjust='fdr')
+table1
+```
+
+```{r}
+filter(table1,logFC>1|logFC<(-1),P.Value<0.05)
+```
+
+This section uses $treat$ instead of $eBayes$ to compute moderated t-statistics, moderated F-statistic, and log-odds of differential expression by empirical Bayes moderation of the standard errors towards a global value.
+
+#### Limma output for dataset 1 using treat and topTreat
+```{r}
+fit2_1 <- contrasts.fit(fit_1, contrast1)
+fit2_1_treat<-treat(fit2_1)
+summary(decideTests(fit2_1_treat))
+```
+
+
+```{r}
+table1_treat=topTreat(fit2_1_treat,p.value=0.05, lfc=1, n=1000)
+table1_treat
+```
+Making sure that the conditions mentioned by the paper are met. (|Log2FC|>1 and p-valie )
+
+```{r}
+table_1_filter<-filter(table1,logFC>1|logFC<(-1),P.Value<0.05)
+table_1_filter
+```
+
+The tables above shows that we have found 1,109 DEGs using eBayes and topTable, and 785 DEGs using treat and topTreat. None of these numbers match the amount of DEGs that Liang & Sun (2018) found on this dataset (GSE3678) which were 634 DEGs. 
+
+This section poses another way of setting up the design matrix. As we can see we get the same output for when we used topTable and when we used topTreat.
+```{r}
+design_11<-model.matrix(~factor(rep(1:2, each=7)))
+#design_11
+fit_11 <- lmFit(eset1, design_11)
+fit22 <- eBayes(fit_11)
+table_11_eb<-topTable(fit22, coef = 2,p.value=0.05, lfc=1,n=70000)
+table_11_eb
+```
+
+As we can see we get the same matrix, however the output is different. Liang & Sun (2018) claim to have found 634 Differentially Expressed Genes (DEGs) while we found 1,109 DEGs with topTable and 735 with topTreat. The discrepancy between these numbers is most likely due to specific arguments used when running eBayes or treat. The two elements mentioned by the paper were used when running topTable and topTreat, but the results are different which might mean there are specific steps of running the DEG analysis using limma that are not outlined in the paper and are important for replicating their results. 
+
+```{r}
+fit2_11<-treat(fit_11)
+summary(decideTests(fit2_11))
+```
+
+```{r}
+table_11_treat<-topTreat(fit2_11,coef=2,p.value=0.05,lfc=1,n=1000)
+table_11_treat
+```
+### DEG analysis on dataset 2: GSE3467
+
+#### Design matrix 
+```{r}
+design2<- model.matrix(~-1 + factor(rep(c(1:2),9)))
+colnames(design2) <- c("normal_2","tumor_2")
+design2
+```
+
+#### Creating the contrast matrix and running $lmFit$.
+```{r}
+contrast2<- makeContrasts(T2VSN2=tumor_2-normal_2, levels = colnames(design2))
+contrast2
+```
+
+```{r}
+fit_2<- lmFit(eset2, design2)
+fit2_2 <- contrasts.fit(fit_2, contrast2)
+fit2_2 <- eBayes(fit2_2)
+summary(decideTests(fit2_2))
+```
+
+#### Limma output for Dataset 2: GSE3467
+Using eBayes and topTable
+```{r}
+table2=topTable(fit2_2,p.value=0.05, lfc=1,n=70000)
+table2
+```
+
+Using treat and topTreat 
+```{r}
+fit2_2_treat <- treat(fit2_2)
+summary(decideTests(fit2_2_treat))
+```
+
+```{r}
+table2_treat=topTreat(fit2_2_treat,p.value=0.05, lfc=1,n=70000)
+table2_treat
+```
+
+This time, we also get different outputs using <br> 
+1) ebayes and toptable  (1,086 DEGs found)  and <br/>
+2) treat and topTreat (796 DEGs found). <br/>
+It is still different from the number that Liang and Sun claimed which was 800. 
+
+### DEG analysis on dataset 3: GSE33630
+#### Design matrix 
+```{r}
+design3<-model.matrix(~-1 + factor(c(rep((2),49),rep(1,45))))
+colnames(design3) <- c("normal_3","tumor_3")
+#design3
+```
+
+#### Creating the contrast matrix and running $lmFit$.
+```{r}
+contrast3<- makeContrasts(T3VSN3=tumor_3-normal_3, levels = colnames(design3))
+contrast3
+```
+
+```{r}
+fit_3<- lmFit(eset3, design3)
+fit2_3 <- contrasts.fit(fit_3, contrast3)
+```
+#### Limma output for Dataset 3: GSE33630
+Using eBayes and topTable
+```{r}
+fit2_3 <- eBayes(fit2_3)
+summary(decideTests(fit2_3))
+```
+
+
+```{r}
+table3=topTable(fit2_3,p.value=0.05, lfc=1,n=70000)
+table3
+```
+
+
+Using treat and topTreat 
+```{r}
+fit2_3_treat <- treat(fit2_3)
+summary(decideTests(fit2_3_treat))
+```
+
+
+```{r}
+table3_treat=topTreat(fit2_3_treat,p.value=0.05, lfc=1,n=70000)
+table3_treat
+```
+
+For dataset 3, we also have a different output than Liang & Sun (2018), using: <br> 
+1) ebayes and toptable  (1,916 DEGs found)  and <br/>
+2) treat and topTreat (1,911 DEGs found). <br/>
+Liang & Sun claimed which was 1075 DEGs found for this dataset. 
+
+### DEG analysis on Dataset 4: GSE58545
+#### Design matrix 
+```{r}
+#1 is normal
+#2 is tumor 
+design4<-model.matrix(~-1 + factor(c(rep((1),2),2,1,2,1,2,rep(1,4),rep(2,3),1,1,2,1,1,2,1,2,1,1,2,1,2,1,2,1,rep(2,15))))
+colnames(design4) <- c("normal_4","tumor_4")
+#design4
+```
+#### Creating the contrast matrix and running $lmFit$.
+
+```{r}
+contrast4<- makeContrasts(T3VSN3=tumor_4-normal_4, levels = colnames(design4))
+contrast4
+```
+
+#### Limma output for Dataset 4: GSE58545
+```{r}
+fit_4<- lmFit(eset4, design4)
+fit2_4 <- contrasts.fit(fit_4, contrast4)
+```
+Using eBayes and topTable
+```{r}
+fit2_4<- eBayes(fit2_4)
+summary(decideTests(fit2_4))
+```
+
+
+```{r}
+table4=topTable(fit2_4,p.value=0.05, lfc=1,n=70000)
+table4
+```
+
+Using treat and topTreat 
+
+```{r}
+fit2_4_treat <- treat(fit2_4)
+summary(decideTests(fit2_4_treat))
+```
+
+```{r}
+table4_treat=topTreat(fit2_4_treat,p.value=0.05,lfc=1,n=70000)
+table4_treat
+```
+
+
+#### Extracting the rows of each limma output for each dataset 
+Differentially expressed genes using treat and topTreat 
+```{r}
+degs1<-row.names(table1_treat)
+degs2<-row.names(table2_treat)
+degs3<-row.names(table3_treat)
+degs4<-row.names(table4_treat)
+```
+
+Differentially expressed genes using eBayes and topTable
+```{r}
+degs1_eb<-row.names(table1)
+degs2_eb<-row.names(table2)
+degs3_eb<-row.names(table3)
+degs4_eb<-row.names(table4)
+```
+
+### Consistently expressed genes from Venn analysis (using output from treat and topTreat)
+```{r}
+Venn=venn.diagram(
+  x = list(degs2,degs4,degs1,degs3),
+  category.names = c("Dataset 2:GSE3467" , "Dataset 4: GSE58545" , 'Dataset 1:GSE3678',"Dataset 3:GSE33630"),
+  filename = '#venn_diagram_1.png',
+  output=TRUE
+)
+```
+
+
+```{r}
+myCol <- brewer.pal(4, "Pastel2")
+
+Venn2=venn.diagram(
+  x = list(degs2,degs4,degs1,degs3),
+  category.names = c("Dataset 2:GSE3467" , "Dataset 4: GSE58545" , 'Dataset 1:GSE3678',"Dataset 3:GSE33630"),
+  filename='Venn_diagram_2.png',
+  output=TRUE,
+  fill = myCol,
+  height=4000,
+  width=4500
+)
+```
+
+```{r}
+consistent_t<-intersect(degs1,intersect(degs2,intersect(degs3,degs4)))
+#consistent_t
+```
+
+### Table of consistently expressed genes over all 4 datasets (using output from treat and topTreat) 
+```{r}
+consistent_table_t<-table1_treat[consistent_t,]
+consistent_table_t
+```
+#### Checking for upregulated vs downregulated genes 
+##### Table of upregulated genes 
+We found 95 upregulated genes consistently expressed over all 4 datasets. The following table shows the output of DEG analysis on Dataset 1: GSE3678, filtered for genes that are consistently expressed on all 4 datasets, and are upregulated. 
+```{r}
+upregulatedT<-filter(consistent_table_t,logFC>1,P.Value<0.05)
+upregulatedT$geneID<-rownames(upregulatedT)
+upregulatedT
+```
+```{r}
+#write_xlsx(upregulatedT,"/Users/marcela/Documents/Fall 2020/capstone/replication/upreg1T.xlsx")
+```
+
+#####  Table of downregulated genes
+We found 98 downregulated genes consistently expressed over all 4 datasets. The following table shows the output of DEG analysis using treat and topTreat on Dataset 1: GSE3678, filtered for genes that are consistently expressed on all 4 datasets, and are downregulated. 
+```{r}
+downregulatedT<-filter(consistent_table_t,logFC<(-1),P.Value<0.05)
+downregulatedT$geneID<-rownames(downregulatedT)
+downregulatedT
+```
+```{r}
+#write_xlsx(downregulatedT,"/Users/marcela/Documents/Fall 2020/capstone/replication/downreg1T.xlsx")
+```
+
+### Consistently expressed genes from Venn analysis (using output from eBayes and topTable)
+```{r}
+myCol <- brewer.pal(4, "Pastel2")
+
+Venn2_ebayes=venn.diagram(
+  x = list(degs2_eb,degs4_eb,degs1_eb,degs3_eb),
+  category.names = c("Dataset 2:GSE3467" , "Dataset 4: GSE58545" , 'Dataset 1:GSE3678',"Dataset 3:GSE33630"),
+  filename='Venn_diagram_ebayes.png',
+  output=TRUE,
+  fill = myCol,
+  height=4000,
+  width=4500
+)
+```
+
+```{r}
+consistent_eb<-intersect(degs1_eb,intersect(degs2_eb,intersect(degs3_eb,degs4_eb)))
+#consistent_eb
+```
+
+### Table of consistently expressed genes over all 4 datasets (using output from eBayes and topTable)
+
+```{r}
+consistent_table_eb<-table1[consistent_eb,]
+consistent_table_eb
+```
+We found 278 consistently expressed genes across all 4 datasets.
+
+#### Checking for upregulated vs downregulated genes 
+##### Table of upregulated genes 
+We found 131 upregulated genes consistently expressed across the 4 datasets. The following table shows the output of DEG analysis using eBayes and topTable on Dataset 1: GSE3678, filtered for genes that are consistently expressed on all 4 datasets, and are upregulated.
+```{r}
+upregulatedE<-filter(consistent_table_eb,logFC>1,P.Value<0.05)
+upregulatedE$geneID<-rownames(upregulatedE)
+upregulatedE
+```
+```{r}
+#write_xlsx(upregulatedE,"/Users/marcela/Documents/Fall 2020/capstone/replication/upreg1E.xlsx")
+```
+
+#### Table of downregulated genes 
+We found 147 downregulated genes consistently expressed across the 4 datasets. The following table shows the output of DEG analysis using eBayes and topTable on Dataset 1: GSE3678, filtered for genes that are consistently expressed on all 4 datasets, and are downregulated
+```{r}
+downregulatedE<-filter(consistent_table_eb,logFC<(-1),P.Value<0.05)
+downregulatedE$geneID<-rownames(downregulatedE)
+downregulatedE
+```
+```{r}
+#write_xlsx(downregulatedE,"/Users/marcela/Documents/Fall 2020/capstone/replication/downreg1E.xlsx")
+```
+
+
+## Results comparison with Liang & Sun (2018) 
+
+In this section I will analyze the differences between results from Liang & Sun (2018) regarding the DEGs that were upregulated and downregulated accross all 4 datasets.
+Using my DEG analysis results, I took the affy probe IDs for each DEG and used BIOGPS to find the gene symbols for the DEGs. 
+The table included below is a dataframe that contains my DEG analysis results, using both ebayes and treat methods, aside from the results from Liang & Sun (2018). UP.genes.LS stands for upregulated genes from Liang & Sun, while UP.genes.MR.treat stands for Upregulated genes using treat function, by Marcela. More details below.  
+
+UP.genes.LS: symbols for upregulated genes reported by Liang & Sun. <br/>
+Down.genes.LS : symbols for downregulated genes reported by Liang & Sun.<br/>
+UP.genes.MR.treat: upregulated genes found using the functions treat and topTreat. <br/>
+Down.genes.MR.treat: downregulated genes found using the functions treat and topTreat.<br/>
+UP.genes.MR.eBayes: upregulated genes found using the functions eBayes and topTable. <br/>
+Down.genes.MR.eBayes: downregulated genes found using the functions eBayes and topTable.
+```{r}
+degsresults<- read.csv("DEG-results-both.csv", header = TRUE)
+degsresults
+```
+```{r}
+up_intersect_treat<-intersect(degsresults$UP.genes.LS,degsresults$UP.genes.MR.treat)
+down_intersect_treat<-intersect(degsresults$Down.genes.LS,degsresults$Down.genes.MR.treat)
+cat('Number of overlapping upregulated genes (treat):',length(up_intersect_treat), sep = '')
+```
+```{r}
+cat('Number of overlapping downregulated genes (treat):',length(down_intersect_treat),sep = '')
+```
+
+```{r}
+up_intersect_eb<-intersect(degsresults$UP.genes.LS,degsresults$UP.genes.MR.eBayes)
+down_intersect_eb<-intersect(degsresults$Down.genes.LS,degsresults$Down.genes.MR.eBayes)
+cat('Number of overlapping upregulated genes (eBayes):',length(up_intersect_eb))
+```
+```{r}
+cat('Number of overlapping downregulated genes (eBayes):', length(down_intersect_eb), sep=' ' )
+```
+
+As we can see above, we get 77 overlapping upregulated genes and 68 overlapping downregulated genes with Liang & Sun (2018) when we use treat and topTreat, and we get 94 overlapping upregulated genes and 90 overlapping downregulated genes when we use treat and topTreat. 
+```{r}
+up_intersect_treat
+```
+
+```{r}
+down_intersect_treat
+```
+
+
+```{r}
+up_intersect_eb
+```
+
+```{r}
+down_intersect_eb
+```
+
+Notebook version: Nov 14, 2020. 
