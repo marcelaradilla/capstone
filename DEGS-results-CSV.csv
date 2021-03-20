@@ -99,7 +99,7 @@ logFC,AveExpr,t,P.Value,adj.P.Val,geneID,,NO.,QUERY,SYMBOL,ID,NAME,SPECIES
 1.694066821,10.31632722,4.007519899,0.0006116781357,0.04254898482,202071_at,,93,202071_at,SDC4,6385,syndecan 4,human
 2.129468302,9.118097409,3.9676451,0.0006965734256,0.04701870623,202295_s_at,,94,202295_s_at,CTSH,1512,cathepsin H,human
 1.059198168,7.548103813,3.896832993,0.0007303899737,0.04864076956,210605_s_at,,95,210605_s_at,MFGE8,4240,milk fat globule EGF and factor V/VIII domain containing,human
-Table of downregulated genes,,,,,,,Table of gene symbols and names for downregulated genes,,,,,,
+Table of downregulated genes,,,,,,,Table of gene symbols and names for downregulated genes,,,,,
 This table was created by taking the consistently expressed genes in all 4 datasets and filtering for log2FC<-1 and p vlaue<0.05 in the limma output for Dataset 1.,,,,,,,This table was created by taking the geneID column from the table on the left and looking for the genes in BIOGPS. ,,,,,,
 logFC: estimate of the log2-fold-change corresponding to the contrast,AveExpr: average log2-expression for the probe over all arrays and channels,t: moderated t-statistic,P.Value: raw p-value,adj.P.Val: ajusted p-value,"Gene ID: affy probe ID, these were used to look for the gene symbols in BIOGPS ",,,the affy probe ID taken from geneID column from table on the left,Gene symbol,Gene ID,,,
 logFC,AveExpr,t,P.Value,adj.P.Val,geneID,,NO.,QUERY,SYMBOL,ID,NAME,SPECIES,
